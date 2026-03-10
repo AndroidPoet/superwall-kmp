@@ -1,4 +1,8 @@
 <p align="center">
+  <img src="art/logo.jpeg" alt="superwall-kmp" width="720" />
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/Kotlin-2.1.0-blue.svg?logo=kotlin" alt="Kotlin">
   <img src="https://img.shields.io/badge/Compose-1.7.3-blue.svg?logo=jetpackcompose" alt="Compose">
   <img src="https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20macOS%20%7C%20Desktop-green.svg" alt="Platforms">
