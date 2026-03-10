@@ -6,6 +6,7 @@
   <img src="https://img.shields.io/badge/Kotlin-2.1.0-blue.svg?logo=kotlin" alt="Kotlin">
   <img src="https://img.shields.io/badge/Compose-1.7.3-blue.svg?logo=jetpackcompose" alt="Compose">
   <img src="https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20macOS%20%7C%20Desktop-green.svg" alt="Platforms">
+  <img src="https://img.shields.io/badge/Maven%20Central-0.2.0-blue.svg" alt="Maven Central">
   <img src="https://img.shields.io/badge/License-Apache%202.0-orange.svg" alt="License">
 </p>
 
@@ -15,21 +16,83 @@ Kotlin Multiplatform SDK for [Superwall](https://superwall.com) — remote paywa
 
 ## Features
 
+- **Server-Driven Native UI** — Backend sends a JSON component tree, SDK renders native Compose paywalls. No WebView needed.
 - **Shared Business Logic** — Config management, identity, analytics, placement evaluation, and expression engine run in `commonMain`
-- **Platform-Native Rendering** — Paywalls render via WebView (Android) and WKWebView (iOS) with full JavaScript bridge support for `data-pw-*` attributes
+- **Dual Rendering** — Native Compose renderer (new) + WebView fallback (Android/iOS) with full JavaScript bridge support
 - **Platform-Native Billing** — Google Play Billing on Android, StoreKit on iOS
 - **Koin DI** — Module-scoped dependency injection with platform bindings swapped at init
-- **Compose Multiplatform** — `SuperwallPaywall` and `SuperwallGate` composables for declarative paywall presentation
-- **Expression Evaluator** — Tokenizer + recursive descent parser for server-side trigger rule evaluation (`==`, `!=`, `<`, `>`, `&&`, `||`, `contains`, `in`, property access)
+- **Compose Multiplatform** — `SuperwallPaywall`, `SuperwallGate`, and `SuperwallNativePaywall` composables
+- **Expression Evaluator** — Tokenizer + recursive descent parser for server-side trigger rule evaluation
+
+## Server-Driven Native Paywall
+
+<p align="center">
+  <img src="art/screenshot-premium.png" alt="Native Paywall Preview" width="420" />
+</p>
+
+The backend defines the entire paywall UI as a JSON component tree — the SDK renders it as **native Material 3 composables** across all platforms. No WebView, no HTML, no CSS.
+
+### How It Works
+
+```
+Backend JSON                          Native UI
+─────────────                         ─────────
+{ "type": "stack",                    Column {
+  "dimension": "vertical",      →       Text("Unlock Premium")
+  "components": [                       PackageSelector(...)
+    { "type": "text", ... },            Button("Start Free Trial")
+    { "type": "package", ... },       }
+    { "type": "purchase_button" }
+  ]
+}
+```
+
+### 11 Component Types
+
+| Component | Renders As | Purpose |
+|-----------|-----------|---------|
+| `stack` | Column / Row / Box | Layout container (vertical, horizontal, z-layer) |
+| `text` | Material 3 Text | With `{{ product.price }}` variable resolution |
+| `image` | Platform image loader | Remote URL or local asset |
+| `button` | Clickable Box | Fires actions (close, open-url, custom) |
+| `purchase_button` | Clickable Box | Triggers purchase flow |
+| `package` | Selectable card | Product option with animated selection style |
+| `spacer` | Spacer | Flexible or fixed spacing |
+| `divider` | HorizontalDivider | Thin separator line |
+| `close_button` | Icon button | Dismisses the paywall |
+| `badge` | Styled label | "BEST VALUE", "SAVE 58%", etc. |
+| `icon` | Icon or symbol | Named icon or URL |
+
+### Variable Templates
+
+```
+{{ product.price }}          → $49.99
+{{ product.period }}         → year
+{{ product.trial_days }}     → 14
+{{ product.price_per_month }} → USD 4.16
+{{ product.name }}           → Yearly
+```
+
+### Drop-In Integration
+
+```kotlin
+// Place at your app root — auto-presents native paywalls
+Box {
+  MyApp()
+  SuperwallNativePaywall()
+}
+```
+
+When `componentsConfig` is present in the backend response, the SDK renders natively. When absent, it falls back to WebView — fully backwards compatible.
 
 ## Targets
 
 | Platform | Target | Billing | Rendering |
 |----------|--------|---------|-----------|
-| Android | `androidTarget` | Google Play Billing 7.1 | WebView + JS Bridge |
-| iOS | `iosArm64`, `iosX64`, `iosSimulatorArm64` | StoreKit 1 | WKWebView + Message Handler |
-| macOS | `macosArm64`, `macosX64` | — | — |
-| Desktop | `jvm("desktop")` | — | — |
+| Android | `androidTarget` | Google Play Billing 7.1 | Native Compose + WebView fallback |
+| iOS | `iosArm64`, `iosX64`, `iosSimulatorArm64` | StoreKit 1 | Native Compose + WKWebView fallback |
+| macOS | `macosArm64`, `macosX64` | — | Native Compose |
+| Desktop | `jvm("desktop")` | — | Native Compose |
 
 ## Setup
 
@@ -38,8 +101,8 @@ Kotlin Multiplatform SDK for [Superwall](https://superwall.com) — remote paywa
 ```kotlin
 // build.gradle.kts
 dependencies {
-  implementation("io.github.androidpoet:superwall:<version>")
-  implementation("io.github.androidpoet:superwall-compose:<version>") // optional
+  implementation("io.github.androidpoet:superwall:0.2.0")
+  implementation("io.github.androidpoet:superwall-compose:0.2.0") // native renderer
 }
 ```
 
@@ -158,6 +221,11 @@ superwall-kmp/
 │   ├── commonMain/                   ← Shared business logic
 │   │   ├── Superwall.kt             ← Entry point
 │   │   ├── models/                   ← Domain models
+│   │   │   └── components/           ← Server-driven UI component model
+│   │   │       ├── PaywallComponent  ← 11 sealed component types
+│   │   │       ├── Styling           ← Colors, padding, borders, shadows
+│   │   │       ├── Action            ← Purchase, close, restore, navigate
+│   │   │       └── VariableResolver  ← {{ product.price }} template engine
 │   │   ├── config/                   ← Remote config + caching
 │   │   ├── identity/                 ← User identity + attributes
 │   │   ├── analytics/                ← Event tracking + batching
@@ -171,6 +239,13 @@ superwall-kmp/
 │       ├── storekit/                 ← StoreKit 1
 │       └── webview/                  ← WKWebView + message handlers
 ├── superwall-compose/                ← Compose Multiplatform UI
+│   ├── PaywallComposable.kt         ← SuperwallPaywall, SuperwallGate
+│   └── renderer/                     ← Server-driven native renderer
+│       ├── ComponentRenderer         ← Recursive component → Compose mapper
+│       ├── NativePaywall             ← Top-level rendering composable
+│       ├── PaywallRenderState        ← Variable resolution + product state
+│       └── SuperwallNativePaywall    ← Auto-presenting drop-in composable
+├── desktop-sample/                   ← Desktop JVM sample (3 paywall designs)
 └── app/                              ← Android sample
 ```
 
