@@ -56,10 +56,29 @@ public class Superwall private constructor(
 ) {
 
   private val _subscriptionStatus = MutableStateFlow<SubscriptionStatus>(SubscriptionStatus.Unknown)
+  private val _pendingNativePaywall = MutableStateFlow<NativePaywallRequest?>(null)
 
   /** Current subscription status. */
   public val subscriptionStatus: StateFlow<SubscriptionStatus> =
     _subscriptionStatus.asStateFlow()
+
+  /**
+   * Pending native paywall request. The Compose layer observes this to render
+   * a native paywall when the server provides a component tree instead of a URL.
+   */
+  public val pendingNativePaywall: StateFlow<NativePaywallRequest?> =
+    _pendingNativePaywall.asStateFlow()
+
+  /** Dismiss a native paywall and optionally unlock the feature. */
+  public fun dismissNativePaywall(purchased: Boolean = false) {
+    val request = _pendingNativePaywall.value ?: return
+    _pendingNativePaywall.value = null
+    val info = request.info
+    analyticsTracker.track(SuperwallEvent.PaywallClose(info))
+    if (purchased) {
+      request.onFeatureUnlocked?.invoke()
+    }
+  }
 
   /** Current user's entitlements (derived from subscription status). */
   public val entitlements: Set<Entitlement>
@@ -162,7 +181,16 @@ public class Superwall private constructor(
       url = paywall.url,
       experiment = result.rule.experiment,
       presentationStyle = paywall.presentationStyle,
+      componentsConfig = paywall.componentsConfig,
     )
+
+    // If the paywall has a native component tree, notify via event
+    // so the Compose layer can render it instead of the WebView presenter.
+    if (info.isNativeRendering) {
+      analyticsTracker.track(SuperwallEvent.PaywallOpen(info))
+      _pendingNativePaywall.value = NativePaywallRequest(info, onFeatureUnlocked)
+      return
+    }
 
     scope.launch {
       paywallPresenter.present(
@@ -371,3 +399,15 @@ public class Superwall private constructor(
     }
   }
 }
+
+/**
+ * Request to present a native paywall.
+ * The Compose layer observes [Superwall.pendingNativePaywall] and renders
+ * a [NativePaywall] composable when this is non-null.
+ */
+public data class NativePaywallRequest(
+  /** Paywall metadata including the component tree. */
+  public val info: PaywallInfo,
+  /** Called when the feature should be unlocked after purchase. */
+  public val onFeatureUnlocked: (() -> Unit)? = null,
+)

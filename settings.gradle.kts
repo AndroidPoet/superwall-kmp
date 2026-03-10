@@ -21,3 +21,4 @@ rootProject.name = "SuperwallKMP"
 include(":app")
 include(":superwall")
 include(":superwall-compose")
+include(":desktop-sample")

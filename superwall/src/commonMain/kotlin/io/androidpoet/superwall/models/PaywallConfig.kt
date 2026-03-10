@@ -1,5 +1,6 @@
 package io.androidpoet.superwall.models
 
+import io.androidpoet.superwall.models.components.PaywallComponentsConfig
 import kotlinx.serialization.Serializable
 
 /**
@@ -22,6 +23,8 @@ public data class PaywallDefinition(
   val url: String,
   val presentationStyle: PaywallPresentationStyle = PaywallPresentationStyle.Fullscreen,
   val productIds: List<String> = emptyList(),
+  /** Native component tree for server-driven UI rendering. When present, renders natively instead of WebView. */
+  val componentsConfig: PaywallComponentsConfig? = null,
 )
 
 @Serializable
