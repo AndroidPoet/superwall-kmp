@@ -22,5 +22,8 @@ jobs:
       - name: Build
         run: ./gradlew :superwall:compileKotlinDesktop :superwall-compose:compileKotlinDesktop
 
+      - name: Test
+        run: ./gradlew :superwall:desktopTest
+
       - name: Build Android
         run: ./gradlew :superwall:compileReleaseKotlinAndroid :superwall-compose:compileReleaseKotlinAndroid
