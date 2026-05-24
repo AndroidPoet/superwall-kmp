@@ -20,7 +20,7 @@ Kotlin Multiplatform SDK for [Superwall](https://superwall.com) — remote paywa
 - **Shared Business Logic** — Config management, identity, analytics, placement evaluation, and expression engine run in `commonMain`
 - **Dual Rendering** — Native Compose renderer (new) + WebView fallback (Android/iOS) with full JavaScript bridge support
 - **Platform-Native Billing** — Google Play Billing on Android, StoreKit on iOS
-- **manual dependency wiring** — Module-scoped dependency injection with platform bindings swapped at init
+- **Flexible wiring** — Platform dependencies are passed during configuration
 - **Compose Multiplatform** — `SuperwallPaywall`, `SuperwallGate`, and `SuperwallNativePaywall` composables
 - **Expression Evaluator** — Tokenizer + recursive descent parser for server-side trigger rule evaluation
 
@@ -76,7 +76,6 @@ Backend JSON                          Native UI
 ### Drop-In Integration
 
 ```kotlin
-// Place at your app root — auto-presents native paywalls
 Box {
   MyApp()
   SuperwallNativePaywall()
@@ -99,15 +98,13 @@ When `componentsConfig` is present in the backend response, the SDK renders nati
 ### Android
 
 ```kotlin
-// build.gradle.kts
 dependencies {
   implementation("io.github.androidpoet:superwall:0.2.0")
-  implementation("io.github.androidpoet:superwall-compose:0.2.0") // native renderer
+  implementation("io.github.androidpoet:superwall-compose:0.2.0")
 }
 ```
 
 ```kotlin
-// Application.onCreate
 Superwall.configure(
   apiKey = "pk_...",
   platformDependencies = superwallAndroidDependencies(
@@ -120,7 +117,6 @@ Superwall.configure(
 ### iOS
 
 ```kotlin
-// Shared Kotlin
 Superwall.configure(
   apiKey = "pk_...",
   platformDependencies = superwallIOSDependencies,
@@ -128,7 +124,6 @@ Superwall.configure(
 ```
 
 ```swift
-// Swift via Kotlin interop
 SuperwallCompanion.shared.configure(
   apiKey: "pk_...",
   platformDependencies: IOSModuleKt.superwallIOSDependencies
@@ -141,7 +136,7 @@ SuperwallCompanion.shared.configure(
 
 ```kotlin
 Superwall.instance.register("premium_feature") {
-  // Feature unlocked — no paywall shown, or user purchased
+  println("Unlocked")
 }
 ```
 
@@ -163,12 +158,10 @@ Superwall.instance.setSubscriptionStatus(
 ### Compose Integration
 
 ```kotlin
-// Gate content behind a paywall
 SuperwallGate(placement = "premium_feature") {
   Text("This is premium content!")
 }
 
-// Or present manually
 SuperwallPaywall(
   placement = "upgrade_prompt",
   onFeatureUnlocked = { /* navigate */ },
@@ -181,7 +174,6 @@ SuperwallPaywall(
 ```kotlin
 val controller = object : PurchaseController {
   override suspend fun purchase(product: StoreProduct): PurchaseResult {
-    // Your RevenueCat / custom logic here
     return PurchaseResult.Purchased
   }
 
@@ -200,12 +192,10 @@ Superwall.configure(
 ### Events
 
 ```kotlin
-// Observe all SDK events
 Superwall.instance.events.collect { eventInfo ->
   println("${eventInfo.event} at ${eventInfo.timestamp}")
 }
 
-// Or use the delegate
 Superwall.instance.delegate = object : SuperwallDelegate {
   override fun handleSuperwallEvent(eventInfo: SuperwallEventInfo) { }
   override fun handleCustomPaywallAction(name: String) { }
@@ -231,7 +221,7 @@ superwall-kmp/
 │   │   ├── analytics/                ← Event tracking + batching
 │   │   ├── placement/                ← Trigger evaluation + expression engine
 │   │   ├── network/                  ← Ktor API client
-│   │   └── di/                       ← core dependency factory
+│   │   └── di/                       ← dependency factory
 │   ├── androidMain/                  ← Android implementations
 │   │   ├── billing/                  ← Google Play Billing
 │   │   └── webview/                  ← WebView + JS bridge + Activity
@@ -249,19 +239,10 @@ superwall-kmp/
 └── app/                              ← Android sample
 ```
 
-### DI (Manual)
-
-```
-shared core dependency factory        ← Shared: ConfigManager, IdentityManager, AnalyticsTracker, etc.
-  + superwallAndroidDependencies ← Android: SharedPrefs, Play Billing, WebView
-  OR superwallIOSDependencies    ← iOS: UserDefaults, StoreKit, WKWebView
-```
-
 ## Tech Stack
 
 | Layer | Library |
 |-------|---------|
-| DI | None (manual wiring) |
 | Networking | [Ktor](https://ktor.io/) 3.0 |
 | Serialization | [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) 1.7 |
 | Async | [kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines) 1.9 |
