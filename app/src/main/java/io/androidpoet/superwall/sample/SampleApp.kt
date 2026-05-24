@@ -4,7 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import io.androidpoet.superwall.Superwall
-import io.androidpoet.superwall.di.superwallAndroidModule
+import io.androidpoet.superwall.di.superwallAndroidDependencies
 import io.androidpoet.superwall.models.SuperwallOptions
 import java.lang.ref.WeakReference
 
@@ -35,7 +35,7 @@ class SampleApp : Application() {
     Superwall.configure(
       apiKey = "pk_your_api_key_here",
       options = SuperwallOptions(),
-      platformModule = superwallAndroidModule(
+      platformDependencies = superwallAndroidDependencies(
         context = applicationContext,
         activityProvider = { currentActivity?.get() },
       ),

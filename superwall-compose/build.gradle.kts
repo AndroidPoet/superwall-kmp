@@ -79,7 +79,6 @@ kotlin {
         implementation(compose.material3)
         implementation(compose.runtime)
         implementation(compose.animation)
-        implementation(libs.koin.compose)
         implementation(libs.kotlinx.coroutines.core)
         implementation(libs.kotlinx.serialization.json)
       }

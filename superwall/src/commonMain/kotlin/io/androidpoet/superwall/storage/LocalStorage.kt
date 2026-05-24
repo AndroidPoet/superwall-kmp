@@ -3,7 +3,7 @@ package io.androidpoet.superwall.storage
 /**
  * Platform-agnostic key-value storage.
  * Android: SharedPreferences. iOS: UserDefaults.
- * Bound via Koin in platform-specific modules.
+ * Provided during SDK configuration.
  */
 public interface LocalStorage {
 

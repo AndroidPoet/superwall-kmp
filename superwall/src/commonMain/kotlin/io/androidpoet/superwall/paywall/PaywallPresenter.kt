@@ -6,7 +6,7 @@ import io.androidpoet.superwall.models.PaywallPresentationStyle
 /**
  * Platform-agnostic interface for presenting paywalls.
  * Android: presents via Activity/WebView. iOS: presents via UIViewController/WKWebView.
- * Bound via Koin in platform-specific modules.
+ * Provided during SDK configuration.
  */
 public interface PaywallPresenter {
 

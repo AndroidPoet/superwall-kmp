@@ -20,7 +20,7 @@ Kotlin Multiplatform SDK for [Superwall](https://superwall.com) — remote paywa
 - **Shared Business Logic** — Config management, identity, analytics, placement evaluation, and expression engine run in `commonMain`
 - **Dual Rendering** — Native Compose renderer (new) + WebView fallback (Android/iOS) with full JavaScript bridge support
 - **Platform-Native Billing** — Google Play Billing on Android, StoreKit on iOS
-- **Koin DI** — Module-scoped dependency injection with platform bindings swapped at init
+- **manual dependency wiring** — Module-scoped dependency injection with platform bindings swapped at init
 - **Compose Multiplatform** — `SuperwallPaywall`, `SuperwallGate`, and `SuperwallNativePaywall` composables
 - **Expression Evaluator** — Tokenizer + recursive descent parser for server-side trigger rule evaluation
 
@@ -110,7 +110,7 @@ dependencies {
 // Application.onCreate
 Superwall.configure(
   apiKey = "pk_...",
-  platformModule = superwallAndroidModule(
+  platformDependencies = superwallAndroidDependencies(
     context = applicationContext,
     activityProvider = { currentActivity },
   ),
@@ -123,7 +123,7 @@ Superwall.configure(
 // Shared Kotlin
 Superwall.configure(
   apiKey = "pk_...",
-  platformModule = superwallIOSModule,
+  platformDependencies = superwallIOSDependencies,
 )
 ```
 
@@ -131,7 +131,7 @@ Superwall.configure(
 // Swift via Kotlin interop
 SuperwallCompanion.shared.configure(
   apiKey: "pk_...",
-  platformModule: IOSModuleKt.superwallIOSModule
+  platformDependencies: IOSModuleKt.superwallIOSDependencies
 )
 ```
 
@@ -193,7 +193,7 @@ val controller = object : PurchaseController {
 Superwall.configure(
   apiKey = "pk_...",
   options = SuperwallOptions(purchaseController = controller),
-  platformModule = superwallAndroidModule(context, activityProvider),
+  platformDependencies = superwallAndroidDependencies(context, activityProvider),
 )
 ```
 
@@ -231,7 +231,7 @@ superwall-kmp/
 │   │   ├── analytics/                ← Event tracking + batching
 │   │   ├── placement/                ← Trigger evaluation + expression engine
 │   │   ├── network/                  ← Ktor API client
-│   │   └── di/                       ← Koin core module
+│   │   └── di/                       ← core dependency factory
 │   ├── androidMain/                  ← Android implementations
 │   │   ├── billing/                  ← Google Play Billing
 │   │   └── webview/                  ← WebView + JS bridge + Activity
@@ -249,19 +249,19 @@ superwall-kmp/
 └── app/                              ← Android sample
 ```
 
-### DI (Koin)
+### DI (Manual)
 
 ```
-superwallCoreModule        ← Shared: ConfigManager, IdentityManager, AnalyticsTracker, etc.
-  + superwallAndroidModule ← Android: SharedPrefs, Play Billing, WebView
-  OR superwallIOSModule    ← iOS: UserDefaults, StoreKit, WKWebView
+shared core dependency factory        ← Shared: ConfigManager, IdentityManager, AnalyticsTracker, etc.
+  + superwallAndroidDependencies ← Android: SharedPrefs, Play Billing, WebView
+  OR superwallIOSDependencies    ← iOS: UserDefaults, StoreKit, WKWebView
 ```
 
 ## Tech Stack
 
 | Layer | Library |
 |-------|---------|
-| DI | [Koin](https://insert-koin.io/) 4.0 |
+| DI | None (manual wiring) |
 | Networking | [Ktor](https://ktor.io/) 3.0 |
 | Serialization | [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization) 1.7 |
 | Async | [kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines) 1.9 |

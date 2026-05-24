@@ -3,7 +3,8 @@ package io.androidpoet.superwall
 import io.androidpoet.superwall.analytics.AnalyticsTracker
 import io.androidpoet.superwall.config.ConfigManager
 import io.androidpoet.superwall.config.ConfigState
-import io.androidpoet.superwall.di.superwallCoreModule
+import io.androidpoet.superwall.di.SuperwallPlatformDependencies
+import io.androidpoet.superwall.di.createSuperwallCoreDependencies
 import io.androidpoet.superwall.identity.IdentityManager
 import io.androidpoet.superwall.models.Entitlement
 import io.androidpoet.superwall.models.NetworkEnvironment
@@ -28,10 +29,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.koin.core.KoinApplication
-import org.koin.core.context.startKoin
-import org.koin.core.qualifier.named
-import org.koin.dsl.module
 
 /**
  * Main entry point for the Superwall SDK.
@@ -53,9 +50,9 @@ public class Superwall private constructor(
   private val storeManager: StoreManager,
   private val purchaseController: PurchaseController?,
   private val scope: CoroutineScope,
+  subscriptionStatus: MutableStateFlow<SubscriptionStatus>,
 ) {
-
-  private val _subscriptionStatus = MutableStateFlow<SubscriptionStatus>(SubscriptionStatus.Unknown)
+  private val _subscriptionStatus = subscriptionStatus
   private val _pendingNativePaywall = MutableStateFlow<NativePaywallRequest?>(null)
 
   /** Current subscription status. */
@@ -329,7 +326,6 @@ public class Superwall private constructor(
 
     @kotlin.concurrent.Volatile
     private var _instance: Superwall? = null
-    private var koinApp: KoinApplication? = null
 
     /** The shared Superwall instance. Throws if not configured. */
     public val instance: Superwall
@@ -342,13 +338,12 @@ public class Superwall private constructor(
      *
      * @param apiKey Your Superwall API key.
      * @param options Optional configuration.
-     * @param platformModule Koin module providing platform-specific implementations.
-     *   Must bind: [StoreManager], [PaywallPresenter], [LocalStorage].
+     * @param platformDependencies platform implementations for storage, billing, and paywall presentation.
      */
     public fun configure(
       apiKey: String,
       options: SuperwallOptions = SuperwallOptions(),
-      platformModule: org.koin.core.module.Module,
+      platformDependencies: SuperwallPlatformDependencies,
       completion: ((Result<Superwall>) -> Unit)? = null,
     ) {
       if (_instance != null) {
@@ -356,29 +351,24 @@ public class Superwall private constructor(
         return
       }
 
-      val parametersModule = module {
-        single(named("apiKey")) { apiKey }
-        single { options.networkEnvironment }
-        single(named("subscriptionStatus")) {
-          MutableStateFlow<SubscriptionStatus>(SubscriptionStatus.Unknown)
-        }
-      }
-
-      koinApp = startKoin {
-        modules(parametersModule, superwallCoreModule, platformModule)
-      }
-
-      val koin = koinApp!!.koin
+      val subscriptionStatus = MutableStateFlow<SubscriptionStatus>(SubscriptionStatus.Unknown)
+      val coreDependencies = createSuperwallCoreDependencies(
+        apiKey = apiKey,
+        networkEnvironment = options.networkEnvironment,
+        localStorage = platformDependencies.localStorage,
+        subscriptionStatus = subscriptionStatus,
+      )
 
       val superwall = Superwall(
-        configManager = koin.get(),
-        identityManager = koin.get(),
-        analyticsTracker = koin.get(),
-        placementManager = koin.get(),
-        paywallPresenter = koin.get(),
-        storeManager = koin.get(),
+        configManager = coreDependencies.configManager,
+        identityManager = coreDependencies.identityManager,
+        analyticsTracker = coreDependencies.analyticsTracker,
+        placementManager = coreDependencies.placementManager,
+        paywallPresenter = platformDependencies.paywallPresenter,
+        storeManager = platformDependencies.storeManager,
         purchaseController = options.purchaseController,
-        scope = koin.get(),
+        scope = coreDependencies.scope,
+        subscriptionStatus = subscriptionStatus,
       )
 
       _instance = superwall

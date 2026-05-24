@@ -7,7 +7,7 @@ import io.androidpoet.superwall.models.StoreProduct
 /**
  * Platform-agnostic interface for interacting with the app store.
  * Android: wraps Google Play Billing. iOS: wraps StoreKit 2.
- * Bound via Koin in platform-specific modules.
+ * Provided during SDK configuration.
  */
 public interface StoreManager {
 
