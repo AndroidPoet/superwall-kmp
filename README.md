@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="art/logo.svg" width="800" alt="Superwall KMP">
+  <img src="art/logo.jpeg" alt="superwall-kmp" width="720" />
 </p>
 
 <p align="center">
